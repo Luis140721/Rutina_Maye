@@ -46,11 +46,11 @@ La primera vez te pide tu nombre, la fecha en que empiezas el ciclo 1 y, si te l
 
 ## 7. Máquinas de tu gym
 
-1. Pestaña **Máquinas** → **Tomar foto** (o Galería).
-2. Toca **Analizar con IA**: te dice qué máquina es, qué músculos trabaja, cómo ajustarla, qué precauciones tiene y qué ejercicio de tu rutina puede reemplazar, con una puntuación de 1 a 5 estrellas.
+1. Pestaña **Máquinas** → **Tomar foto** (o Galería, o Sin foto).
+2. Elige en la lista **qué máquina es** (puedes buscar: "prensa", "femoral", "polea"…). La app rellena qué músculos trabaja, cómo ajustarla, qué cuidados tiene y qué ejercicio de tu rutina puede reemplazar, con una puntuación de 1 a 5 estrellas. Puedes cambiarle el nombre, por ejemplo "la prensa del fondo".
 3. **Guardar en mi gym**. Desde ese momento aparece como variante en tus ejercicios y en las rutinas de los siguientes ciclos.
-4. Sin internet o sin código: **"+ Manual"** y la anotas tú.
-5. **Compartir inventario** manda la lista a quien te arma la rutina.
+4. Si no está en la lista: **"No está en la lista: agregar a mano"** y la anotas tú con su nombre y músculos.
+5. **Compartir inventario** manda la lista a quien te arma la rutina. Todo funciona sin internet.
 
 ## 8. Progreso
 

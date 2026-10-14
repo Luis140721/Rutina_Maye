@@ -80,10 +80,22 @@ pantalla") y se pueden reiniciar todas. Los pasos de cada pantalla están en `TO
 `public/js/app.js`; los elementos se marcan con `data-tour="..."`. La guía completa en texto está
 en la app (`#guia`, acordeones) y en `TUTORIAL.md`.
 
+## Máquinas del gym sin IA (modo por defecto)
+
+La app trae un catálogo de 37 máquinas típicas (`public/js/data/maquinas.js`). Maye toma la foto,
+elige qué máquina es en una lista con buscador y la app rellena músculos, patrón, ajustes,
+precauciones y qué ejercicios de la rutina reemplaza. No necesita clave, no consume tokens y
+funciona sin internet. Si no está en la lista, la anota a mano.
+
+El análisis con IA es opcional: solo aparece el botón "Analizar la foto con IA" cuando el
+despliegue tiene `ANTHROPIC_API_KEY` (la app lo pregunta con un GET a la función).
+
 ## Cuánto cuesta usarla (tokens)
 
-Todo funciona en el teléfono sin consumir nada. Lo único que llama a la API de Anthropic es el
-análisis de fotos de máquinas (`api/analizar-maquina.js`, modelo Claude Opus 5.5):
+Sin clave de Anthropic: **cero**. Todo funciona en el teléfono sin consumir nada.
+
+Si algún día configuras `ANTHROPIC_API_KEY`, lo único que llama a la API es el análisis de
+fotos de máquinas (`api/analizar-maquina.js`, modelo Claude Opus 5.5):
 
 | Concepto | Tokens aprox. por foto |
 |---|---|

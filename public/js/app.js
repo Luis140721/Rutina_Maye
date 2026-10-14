@@ -10,6 +10,7 @@ import {
 import { mountAnim, destroyAnims } from './anim.js';
 import { renderLineChart } from './chart.js';
 import { startTour, endTour } from './tour.js';
+import { buscarMaquinas } from './data/maquinas.js';
 
 // ============================================================================
 // Utilidades DOM
@@ -256,7 +257,7 @@ ROUTES.hoy = () => {
   if (st.maquinas.length === 0) {
     vista.append(h('div', { class: 'card card-tight' },
       h('strong', {}, '📷 Registra las máquinas de tu gym'),
-      h('p', { class: 'small muted', style: 'margin:4px 0 8px' }, 'Tómales foto: la IA te dice para qué sirven y qué ejercicio de tu rutina pueden reemplazar.'),
+      h('p', { class: 'small muted', style: 'margin:4px 0 8px' }, 'Tómales foto y elige cuál es: la app te dice para qué sirve y qué ejercicio de tu rutina reemplaza.'),
       h('a', { class: 'btn btn-sm', href: '#maquinas' }, 'Ir a máquinas')));
   }
 };
@@ -264,16 +265,14 @@ ROUTES.hoy = () => {
 function onboarding() {
   const nombre = h('input', { class: 'input', value: getState().perfil.nombre || 'Maye', maxlength: 30 });
   const fecha = h('input', { class: 'input', type: 'date', value: toISO(new Date()) });
-  const codigo = h('input', { class: 'input', placeholder: 'Opcional, te lo da quien administra la app', autocomplete: 'off' });
   return h('div', { class: 'card' },
     h('h2', {}, '¡Bienvenida! 💪'),
     h('p', { class: 'muted' }, 'Esta app tiene tu rutina de 5 días por semana (2 de pierna, 2 de tren superior y 1 de abdomen + glúteo + cardio), con animaciones de cada ejercicio, registro de progreso y ciclos de 14 semanas.'),
     h('label', { class: 'field mt' }, h('span', {}, 'Tu nombre'), nombre),
     h('label', { class: 'field' }, h('span', {}, '¿Qué día empiezas el ciclo 1?'), fecha),
-    h('label', { class: 'field' }, h('span', {}, 'Código de acceso para analizar fotos con IA'), codigo),
     h('button', { class: 'btn btn-primary btn-block', onclick: () => {
       if (!fecha.value) return toast('Elige una fecha');
-      update((s) => { s.perfil.nombre = nombre.value.trim() || 'Maye'; s.perfil.inicioCiclo = fecha.value; s.ajustes.codigo = codigo.value.trim(); });
+      update((s) => { s.perfil.nombre = nombre.value.trim() || 'Maye'; s.perfil.inicioCiclo = fecha.value; });
       toast('¡Lista! Tu ciclo 1 empieza ' + fmtFecha(fecha.value));
       render();
     } }, 'Empezar'),
@@ -628,15 +627,16 @@ let filtroMusculo = '';
 ROUTES.maquinas = () => {
   const st = getState();
   setTitulo('Máquinas de tu gym', `${st.maquinas.length} registradas`);
-  const file = h('input', { type: 'file', accept: 'image/*', capture: 'environment', style: 'display:none', onchange: (e) => { const f = e.target.files[0]; if (f) analizarFoto(f); e.target.value = ''; } });
-  const file2 = h('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: (e) => { const f = e.target.files[0]; if (f) analizarFoto(f); e.target.value = ''; } });
+  const file = h('input', { type: 'file', accept: 'image/*', capture: 'environment', style: 'display:none', onchange: (e) => { const f = e.target.files[0]; if (f) prepararFoto(f); e.target.value = ''; } });
+  const file2 = h('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: (e) => { const f = e.target.files[0]; if (f) prepararFoto(f); e.target.value = ''; } });
   vista.append(file, file2);
   vista.append(h('div', { class: 'card card-accent', 'data-tour': 'maq-analizar' },
-    h('h2', {}, '📷 Analizar una máquina'),
-    h('p', { class: 'muted' }, 'Toma una foto y la IA te dice qué es, qué músculos trabaja, cómo ajustarla y qué ejercicio de tu rutina puede reemplazar. Todo se guarda en tu inventario.'),
+    h('h2', {}, '📷 Registrar una máquina'),
+    h('p', { class: 'muted' }, 'Tómale foto y elige cuál es de la lista. La app te dice qué músculos trabaja, cómo ajustarla y qué ejercicio de tu rutina puede reemplazar. Todo queda en tu inventario.'),
     h('div', { class: 'row' },
       h('button', { class: 'btn btn-primary grow', onclick: () => file.click() }, 'Tomar foto'),
-      h('button', { class: 'btn', onclick: () => file2.click() }, 'Galería'))));
+      h('button', { class: 'btn', onclick: () => file2.click() }, 'Galería'),
+      h('button', { class: 'btn', onclick: () => elegirMaquina(null) }, 'Sin foto'))));
 
   if (st.maquinas.length) {
     const musc = [...new Set(st.maquinas.flatMap((m) => m.musculos || []))];
@@ -654,13 +654,57 @@ ROUTES.maquinas = () => {
     vista.append(grid);
     vista.append(h('div', { class: 'row mt' },
       h('button', { class: 'btn grow', onclick: compartirInventario }, '📤 Compartir inventario'),
-      h('button', { class: 'btn', 'data-tour': 'maq-manual', onclick: () => agregarManual() }, '+ Manual')));
+      h('button', { class: 'btn', 'data-tour': 'maq-manual', onclick: () => elegirMaquina(null) }, '+ Agregar')));
     vista.append(h('p', { class: 'small muted mt' }, 'Comparte el inventario con quien arma tu rutina: así las próximas rutinas usan las máquinas que de verdad hay en tu gym.'));
   } else {
     vista.append(h('p', { class: 'muted center mt', 'data-tour': 'maq-lista' }, 'Todavía no hay máquinas. Empieza por las de pierna: prensa, hack, extensora, femoral, hip thrust, abductora.'));
-    vista.append(h('button', { class: 'btn btn-block mt', 'data-tour': 'maq-manual', onclick: () => agregarManual() }, 'Agregar una máquina sin foto'));
+    vista.append(h('button', { class: 'btn btn-block mt', 'data-tour': 'maq-manual', onclick: () => elegirMaquina(null) }, 'Agregar una máquina sin foto'));
   }
 };
+
+async function prepararFoto(file) {
+  let comp;
+  try { comp = await comprimirImagen(file); } catch (e) { console.error(e); return toast('No se pudo leer la imagen'); }
+  elegirMaquina(comp);
+}
+
+// ¿Hay análisis con IA en este despliegue? Solo si el servidor tiene clave.
+let iaDisponible = null;
+async function comprobarIA() {
+  if (iaDisponible !== null) return iaDisponible;
+  try {
+    const r = await fetch('./api/analizar-maquina', { method: 'GET' });
+    const d = r.ok ? await r.json() : {};
+    iaDisponible = !!d.ia;
+  } catch { iaDisponible = false; }
+  return iaDisponible;
+}
+
+/** Paso 1: elegir del catálogo qué máquina es (con o sin foto). */
+function elegirMaquina(comp) {
+  const buscador = h('input', { class: 'input', placeholder: 'Busca: prensa, femoral, polea…', autocomplete: 'off' });
+  const lista = h('div', { class: 'picks' });
+  const pintar = () => {
+    lista.innerHTML = '';
+    const res = buscarMaquinas(buscador.value).slice(0, 40);
+    for (const m of res) {
+      lista.append(h('button', { class: 'pick', type: 'button', onclick: () => { closeModal(); agregarManual(comp, m); } },
+        h('strong', {}, m.nombre), h('div', { class: 'small muted' }, m.musculos.join(', '))));
+    }
+    if (!res.length) lista.append(h('p', { class: 'muted small', style: 'padding:8px 0' }, 'No aparece con ese nombre. Puedes agregarla a mano abajo.'));
+  };
+  buscador.addEventListener('input', pintar);
+  pintar();
+  const iaSlot = h('div');
+  const body = h('div', {},
+    comp ? h('img', { class: 'preview', style: 'max-height:30vh', src: URL.createObjectURL(comp.blob), alt: 'Foto de la máquina' }) : null,
+    h('p', { class: 'small muted mt' }, 'Elige qué máquina es: la app rellena músculos, ajustes y qué ejercicio de tu rutina reemplaza.'),
+    buscador, lista,
+    h('button', { class: 'btn btn-block mt', onclick: () => { closeModal(); agregarManual(comp); } }, 'No está en la lista: agregar a mano'),
+    iaSlot);
+  openModal('¿Qué máquina es?', body);
+  if (comp) comprobarIA().then((ok) => { if (ok && !modal.hidden) iaSlot.append(h('button', { class: 'btn btn-ghost btn-block mt', onclick: () => { closeModal(); analizarFoto(comp); } }, '✨ Analizar la foto con IA')); });
+}
 
 async function pedirCodigo(msg) {
   return new Promise((resolve) => {
@@ -671,9 +715,7 @@ async function pedirCodigo(msg) {
   });
 }
 
-async function analizarFoto(file) {
-  let comp;
-  try { comp = await comprimirImagen(file); } catch (e) { console.error(e); return toast('No se pudo leer la imagen'); }
+async function analizarFoto(comp) {
   const url = URL.createObjectURL(comp.blob);
   const nota = h('input', { class: 'input', placeholder: 'Nota opcional (ej. "la del rincón, dice Hoist")' });
   const estado = h('div', { class: 'mt' });
@@ -732,26 +774,37 @@ function mostrarResultado(r, comp) {
   openModal(r.nombre || 'Resultado', body);
 }
 
-function agregarManual(comp = null) {
-  const nombre = h('input', { class: 'input', placeholder: 'Ej. Prensa inclinada Hammer' });
-  const musc = new Set();
-  const chips = h('div', { class: 'chips mt' }, MUSCULOS.filter((m) => m !== 'cardio').map((m) => h('button', { class: 'chip chip-btn', type: 'button', onclick: (e) => { if (musc.has(m)) { musc.delete(m); e.target.classList.remove('on'); } else { musc.add(m); e.target.classList.add('on'); } } }, m)));
+/** Paso 2: confirmar y guardar. Con `pre` (entrada del catálogo) viene todo rellenado. */
+function agregarManual(comp = null, pre = null) {
+  const nombre = h('input', { class: 'input', placeholder: 'Ej. Prensa inclinada Hammer', value: pre ? pre.nombre : '' });
+  const musc = new Set(pre ? pre.musculos : []);
+  const chips = h('div', { class: 'chips mt' }, MUSCULOS.filter((m) => m !== 'cardio' || musc.has(m)).map((m) => h('button', { class: `chip chip-btn ${musc.has(m) ? 'on' : ''}`, type: 'button', onclick: (e) => { if (musc.has(m)) { musc.delete(m); e.target.classList.remove('on'); } else { musc.add(m); e.target.classList.add('on'); } } }, m)));
   const pat = h('select', { class: 'input mt' }, h('option', { value: '' }, 'Patrón de movimiento (opcional)'), Object.entries(PATRONES).map(([k, v]) => h('option', { value: k }, v)));
-  const punt = h('select', { class: 'input mt' }, [5, 4, 3, 2, 1].map((n) => h('option', { value: n, selected: n === 4 }, `${stars(n)} ${n === 5 ? 'excelente' : n === 4 ? 'muy útil' : n === 3 ? 'útil' : n === 2 ? 'poco útil' : 'no sirve'}`)));
+  const punt = h('select', { class: 'input mt' }, [5, 4, 3, 2, 1].map((n) => h('option', { value: n, selected: n === (pre ? pre.puntuacion : 4) }, `${stars(n)} ${n === 5 ? 'excelente para tu rutina' : n === 4 ? 'muy útil' : n === 3 ? 'útil como accesorio' : n === 2 ? 'poco útil' : 'no sirve'}`)));
+  const reemplazaPre = pre ? pre.reemplaza.map((id) => byId[id]).filter(Boolean) : [];
+  const info = pre ? h('div', { class: 'mt small' },
+    h('p', {}, pre.resumen),
+    h('div', { class: 'chips' }, pre.patrones.map((p) => h('span', { class: 'chip' }, PATRONES[p] || p))),
+    reemplazaPre.length ? h('p', { class: 'mt' }, h('strong', {}, 'Puede reemplazar: '), reemplazaPre.map((e) => e.nombre).join(', ')) : null,
+    pre.ajustes ? h('p', {}, h('strong', {}, 'Cómo ajustarla: '), pre.ajustes) : null,
+    pre.precauciones ? h('p', {}, h('strong', {}, 'Cuidado: '), pre.precauciones) : null) : null;
   const body = h('div', {},
-    comp ? h('img', { class: 'preview', src: URL.createObjectURL(comp.blob), alt: '' }) : null,
-    h('label', { class: 'field mt' }, h('span', {}, 'Nombre de la máquina'), nombre),
-    h('span', { class: 'small muted' }, 'Músculos que trabaja'), chips, pat, punt,
+    comp ? h('img', { class: 'preview', style: 'max-height:30vh', src: URL.createObjectURL(comp.blob), alt: '' }) : null,
+    h('label', { class: 'field mt' }, h('span', {}, 'Nombre (puedes cambiarlo, por ejemplo "la del fondo")'), nombre),
+    info,
+    h('span', { class: 'small muted' }, 'Músculos que trabaja'), chips,
+    pre ? null : pat,
+    punt,
     h('button', { class: 'btn btn-primary btn-block mt', onclick: async () => {
       if (!nombre.value.trim()) return toast('Ponle un nombre');
       const id = uid(); let fotoId = null;
       if (comp) { fotoId = `foto-${id}`; try { await fotos.guardar(fotoId, comp.blob); } catch { fotoId = null; } }
-      const patrones = pat.value ? [pat.value] : [];
-      const reemplaza = EJERCICIOS.filter((e) => patrones.includes(e.patron)).map((e) => e.id);
-      update((s) => { s.maquinas.push({ id, fotoId, fecha: toISO(new Date()), nombre: nombre.value.trim(), resumen: '', musculos: [...musc], patrones, puntuacion: Number(punt.value), reemplaza, ajustes: '', precauciones: '', manual: true }); });
-      closeModal(); toast('Máquina guardada'); render();
-    } }, 'Guardar'));
-  openModal('Agregar máquina', body);
+      const patrones = pre ? pre.patrones : (pat.value ? [pat.value] : []);
+      const reemplaza = pre ? pre.reemplaza : EJERCICIOS.filter((e) => patrones.includes(e.patron)).map((e) => e.id);
+      update((s) => { s.maquinas.push({ id, fotoId, fecha: toISO(new Date()), nombre: nombre.value.trim(), catalogo: pre ? pre.id : null, resumen: pre ? pre.resumen : '', musculos: [...musc], patrones, puntuacion: Number(punt.value), reemplaza, ajustes: pre ? pre.ajustes : '', precauciones: pre ? pre.precauciones : '', manual: !pre }); });
+      closeModal(); toast('Máquina guardada en tu gym'); render();
+    } }, '💾 Guardar en mi gym'));
+  openModal(pre ? pre.nombre : 'Agregar máquina a mano', body);
 }
 
 ROUTES.maquina = (id) => {
@@ -920,9 +973,9 @@ ROUTES.guia = () => {
     'Cada sesión intenta una repetición más por serie con el mismo peso.',
     'Cuando todas las series llegan al tope del rango, la app te dice "¡Sube el peso!" y te sugiere cuánto. Si te quedas corta, te sugiere bajar un poco. Hazle caso: así se construye el músculo.'));
   vista.append(sec('📷', 'Registrar las máquinas de tu gym',
-    'En Máquinas, toca Tomar foto. La IA te dice qué máquina es, qué músculos trabaja, cómo ajustarla y qué ejercicio de tu rutina puede reemplazar.',
+    'En Máquinas, toca Tomar foto y elige de la lista qué máquina es. La app te dice qué músculos trabaja, cómo ajustarla, qué cuidados tiene y qué ejercicio de tu rutina puede reemplazar.',
     'Guárdala en tu gym. Desde ese momento aparece como variante en tus ejercicios y en las rutinas futuras.',
-    'Sin internet o sin código, usa "+ Manual" y anótala tú misma.'));
+    'Si no está en la lista, anótala a mano con su nombre y los músculos que trabaja. Todo funciona sin internet.'));
   vista.append(sec('📊', 'Ver tu progreso',
     'En Progreso eliges un ejercicio y ves cómo sube tu fuerza estimada sesión a sesión.',
     'Cada dos semanas anota peso, cintura, cadera y muslo, en ayunas y a la misma hora.',
@@ -980,9 +1033,9 @@ const TOURS = {
     { sel: '[data-tour="prog-sesiones"]', titulo: 'Historial', texto: 'Todas tus sesiones guardadas. Toca Ver para revisar una.' },
   ],
   maquinas: [
-    { sel: '[data-tour="maq-analizar"]', titulo: 'Foto a la máquina', texto: 'La IA te dice qué es, qué músculos trabaja, cómo ajustarla y qué ejercicio reemplaza.' },
+    { sel: '[data-tour="maq-analizar"]', titulo: 'Foto a la máquina', texto: 'Tómale foto y elige cuál es de la lista. La app te dice qué músculos trabaja, cómo ajustarla y qué ejercicio reemplaza.' },
     { sel: '[data-tour="maq-lista"]', titulo: 'Tu gym', texto: 'Las máquinas que guardes aparecen aquí y como variantes en tus ejercicios.' },
-    { sel: '[data-tour="maq-manual"]', titulo: 'Sin internet', texto: 'También puedes anotar una máquina a mano.' },
+    { sel: '[data-tour="maq-manual"]', titulo: 'También sin foto', texto: 'Puedes agregar una máquina sin foto, y si no está en la lista, anotarla a mano.' },
   ],
   ciclo: [
     { sel: '[data-tour="ciclo-semana"]', titulo: 'Dónde vas', texto: '14 cuadritos, 14 semanas. El último es la descarga, más suave.' },

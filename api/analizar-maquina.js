@@ -54,6 +54,8 @@ const SCHEMA = {
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
+  // GET: la app pregunta si el análisis con IA está disponible en este despliegue.
+  if (req.method === 'GET') return json(res, 200, { ia: !!process.env.ANTHROPIC_API_KEY });
   if (req.method !== 'POST') return json(res, 405, { error: 'Método no permitido' });
 
   const codigo = process.env.CODIGO_ACCESO;

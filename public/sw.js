@@ -1,9 +1,9 @@
 // Service worker: la app funciona sin conexión (todo menos el análisis con IA).
-const VERSION = 'rutina-v3';
+const VERSION = 'rutina-v4';
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest',
   './js/app.js', './js/anim.js', './js/chart.js', './js/store.js', './js/tour.js',
-  './js/data/ejercicios.js', './js/data/rutina.js',
+  './js/data/ejercicios.js', './js/data/rutina.js', './js/data/maquinas.js',
   './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png',
 ];
 
