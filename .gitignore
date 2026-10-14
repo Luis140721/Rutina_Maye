@@ -9,3 +9,9 @@ Thumbs.db
 
 # archivos pesados del brief
 brief/*.zip
+
+# videos del gym (no subir a GitHub)
+*.mp4
+*.MP4
+*.mov
+*.MOV

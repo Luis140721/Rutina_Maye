@@ -10,7 +10,8 @@ import {
 import { mountAnim, destroyAnims } from './anim.js';
 import { renderLineChart } from './chart.js';
 import { startTour, endTour } from './tour.js';
-import { buscarMaquinas } from './data/maquinas.js';
+import { buscarMaquinas, CATALOGO_MAQUINAS } from './data/maquinas.js';
+import { GYM } from './data/gym.js';
 
 // ============================================================================
 // Utilidades DOM
@@ -638,6 +639,15 @@ ROUTES.maquinas = () => {
       h('button', { class: 'btn', onclick: () => file2.click() }, 'Galería'),
       h('button', { class: 'btn', onclick: () => elegirMaquina(null) }, 'Sin foto'))));
 
+  if (!st.ajustes.gymCargado && GYM.maquinas.length) {
+    vista.append(h('div', { class: 'card' },
+      h('h3', {}, `🏢 Tu gym: ${GYM.nombre}`),
+      h('p', { class: 'small muted' }, `Identificamos ${GYM.maquinas.length} máquinas y zonas en el video del gimnasio. Puedes cargarlas de una vez; las marcadas "por confirmar" conviene verificarlas en persona.`),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn btn-primary grow', onclick: cargarGym }, `Cargar las ${GYM.maquinas.length} máquinas`),
+        h('button', { class: 'btn btn-ghost', onclick: () => { update((s) => { s.ajustes.gymCargado = true; }); render(); } }, 'Ahora no'))));
+  }
+
   if (st.maquinas.length) {
     const musc = [...new Set(st.maquinas.flatMap((m) => m.musculos || []))];
     vista.append(h('div', { class: 'chips', style: 'margin:4px 0 10px' },
@@ -647,7 +657,7 @@ ROUTES.maquinas = () => {
     const grid = h('div', { class: 'grid-2', 'data-tour': 'maq-lista' });
     for (const m of lista) {
       const img = h('div', { class: 'noimg' }, '🏋️');
-      const card = h('a', { class: 'mach', href: `#maquina/${m.id}` }, img, h('div', { class: 'body' }, h('div', { class: 'name' }, m.nombre), h('div', { class: 'stars' }, stars(m.puntuacion || 0)), h('div', { class: 'small muted' }, (m.musculos || []).slice(0, 2).join(', '))));
+      const card = h('a', { class: 'mach', href: `#maquina/${m.id}` }, img, h('div', { class: 'body' }, h('div', { class: 'name' }, m.nombre), h('div', { class: 'stars' }, stars(m.puntuacion || 0)), h('div', { class: 'small muted' }, (m.musculos || []).slice(0, 2).join(', ')), m.confirmar ? h('span', { class: 'chip chip-warn', style: 'margin-top:4px' }, 'por confirmar') : null));
       grid.append(card);
       if (m.fotoId) fotos.obtener(m.fotoId).then((b) => { if (b) { const i = h('img', { alt: m.nombre }); i.src = URL.createObjectURL(b); img.replaceWith(i); } });
     }
@@ -661,6 +671,30 @@ ROUTES.maquinas = () => {
     vista.append(h('button', { class: 'btn btn-block mt', 'data-tour': 'maq-manual', onclick: () => elegirMaquina(null) }, 'Agregar una máquina sin foto'));
   }
 };
+
+/** Carga de golpe el inventario del gym identificado en el video. */
+function cargarGym() {
+  const st = getState();
+  let n = 0;
+  update((s) => {
+    for (const g of GYM.maquinas) {
+      const cat = g.catalogo ? CATALOGO_MAQUINAS.find((m) => m.id === g.catalogo) : null;
+      const nombre = g.nombre || cat?.nombre;
+      if (!nombre || s.maquinas.some((m) => m.nombre === nombre)) continue;
+      s.maquinas.push({
+        id: uid(), fotoId: null, fecha: toISO(new Date()), nombre, catalogo: cat ? cat.id : null, origen: 'video', confirmar: !!g.confirmar, seg: g.seg,
+        resumen: g.resumen ?? cat?.resumen ?? '', musculos: g.musculos ?? cat?.musculos ?? [], patrones: g.patrones ?? cat?.patrones ?? [],
+        puntuacion: g.puntuacion ?? cat?.puntuacion ?? 4, reemplaza: g.reemplaza ?? cat?.reemplaza ?? [],
+        ajustes: [g.nota, g.ajustes ?? cat?.ajustes].filter(Boolean).join(' '), precauciones: g.precauciones ?? cat?.precauciones ?? '', manual: !cat,
+      });
+      n++;
+    }
+    s.ajustes.gymCargado = true;
+  });
+  toast(n ? `${n} máquinas cargadas en tu gym` : 'Ya estaban cargadas');
+  render();
+  void st;
+}
 
 async function prepararFoto(file) {
   let comp;
@@ -816,9 +850,13 @@ ROUTES.maquina = (id) => {
   const imgBox = h('div', { class: 'card', style: 'padding:0;overflow:hidden' });
   if (m.fotoId) fotos.obtener(m.fotoId).then((b) => { if (b) { const i = h('img', { alt: m.nombre, style: 'width:100%;display:block;max-height:60vh;object-fit:contain;background:var(--surface-2)' }); i.src = URL.createObjectURL(b); imgBox.append(i); } });
   vista.append(imgBox);
-  vista.append(h('div', { class: 'card' }, resultadoCard({ ...m, es_maquina: m.esMaquina })));
+  vista.append(h('div', { class: 'card' },
+    m.confirmar ? h('p', { class: 'small' }, h('span', { class: 'chip chip-warn' }, 'por confirmar'), ' Se vio de pasada en el video del gym: verifica en persona que sea esta máquina.') : null,
+    m.origen === 'video' ? h('p', { class: 'small muted' }, `Identificada en el video del gym${m.seg != null ? ` (segundo ${m.seg})` : ''}.`) : null,
+    resultadoCard({ ...m, es_maquina: m.esMaquina })));
   vista.append(h('div', { class: 'card' },
     h('div', { class: 'row' },
+      m.confirmar ? h('button', { class: 'btn btn-sm btn-primary', onclick: () => { update((s) => { s.maquinas.find((x) => x.id === id).confirmar = false; }); toast('Confirmada'); render(); } }, '✓ Confirmar') : null,
       h('button', { class: 'btn btn-sm', onclick: () => {
         const inp = h('input', { class: 'input', value: m.nombre });
         openModal('Renombrar', h('div', {}, inp, h('button', { class: 'btn btn-primary btn-block mt', onclick: () => { update((s) => { s.maquinas.find((x) => x.id === id).nombre = inp.value.trim() || m.nombre; }); closeModal(); render(); } }, 'Guardar')));

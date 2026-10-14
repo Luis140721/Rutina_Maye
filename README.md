@@ -90,6 +90,14 @@ funciona sin internet. Si no está en la lista, la anota a mano.
 El análisis con IA es opcional: solo aparece el botón "Analizar la foto con IA" cuando el
 despliegue tiene `ANTHROPIC_API_KEY` (la app lo pregunta con un GET a la función).
 
+### El gym de Maye, precargado
+
+`public/js/data/gym.js` tiene las 21 máquinas y zonas identificadas en el video del gimnasio
+(Generation Link). En la pestaña Máquinas aparece una tarjeta para cargarlas de una vez; las
+que se vieron de pasada llevan la marca "por confirmar" y un botón para confirmarlas en el
+detalle. Para actualizar el inventario tras otra visita, edita ese archivo: cada entrada
+referencia un `catalogo` de `maquinas.js` o trae sus propios datos.
+
 ## Cuánto cuesta usarla (tokens)
 
 Sin clave de Anthropic: **cero**. Todo funciona en el teléfono sin consumir nada.

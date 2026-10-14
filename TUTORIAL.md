@@ -46,6 +46,8 @@ La primera vez te pide tu nombre, la fecha en que empiezas el ciclo 1 y, si te l
 
 ## 7. Máquinas de tu gym
 
+Tu gym ya viene precargado: en **Máquinas** toca **"Cargar las 21 máquinas"** y aparecen las que vimos en el video del gimnasio. Las que dicen "por confirmar" revísalas en persona y toca **Confirmar** (o bórralas si no existen). Para agregar otras:
+
 1. Pestaña **Máquinas** → **Tomar foto** (o Galería, o Sin foto).
 2. Elige en la lista **qué máquina es** (puedes buscar: "prensa", "femoral", "polea"…). La app rellena qué músculos trabaja, cómo ajustarla, qué cuidados tiene y qué ejercicio de tu rutina puede reemplazar, con una puntuación de 1 a 5 estrellas. Puedes cambiarle el nombre, por ejemplo "la prensa del fondo".
 3. **Guardar en mi gym**. Desde ese momento aparece como variante en tus ejercicios y en las rutinas de los siguientes ciclos.
