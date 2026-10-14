@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Revisión de animaciones</title>
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    body { padding: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+    .cell { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px; }
+    .cell svg { width: 100%; aspect-ratio: 1; background: var(--surface-2); border-radius: 8px; }
+    .cell .n { font-size: 12px; margin-top: 6px; }
+    .ctl { margin-bottom: 12px; display: flex; gap: 8px; align-items: center; }
+  </style>
+</head>
+<body>
+  <div class="ctl">
+    <strong>Animaciones</strong>
+    <label><input type="checkbox" id="pausa"> Pausar</label>
+    <label>Fase <input type="range" id="fase" min="0" max="1" step="0.01" value="0" disabled></label>
+  </div>
+  <div class="grid" id="grid"></div>
+  <script type="module">
+    import { EJERCICIOS } from './js/data/ejercicios.js';
+    import { mountAnim } from './js/anim.js';
+    const grid = document.getElementById('grid');
+    const players = [];
+    // ?ids=a,b,c limita la lista; ?size=340 cambia el ancho mínimo de celda
+    const q = new URLSearchParams(location.search);
+    const ids = q.get('ids') ? q.get('ids').split(',') : null;
+    if (q.get('size')) grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${Number(q.get('size'))}px, 1fr))`;
+    for (const e of EJERCICIOS.filter((x) => !ids || ids.includes(x.id))) {
+      const cell = document.createElement('div'); cell.className = 'cell';
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      cell.append(svg);
+      const n = document.createElement('div'); n.className = 'n'; n.textContent = `${e.nombre} (${e.anim.view})`;
+      cell.append(n);
+      grid.append(cell);
+      players.push(mountAnim(svg, e.anim));
+    }
+    window.__players = players;
+    const pausa = document.getElementById('pausa'), fase = document.getElementById('fase');
+    pausa.addEventListener('change', () => { players.forEach((p) => (pausa.checked ? p.pause() : p.play())); fase.disabled = !pausa.checked; });
+    fase.addEventListener('input', () => { players.forEach((p) => p.seek(Number(fase.value))); });
+  </script>
+</body>
+</html>
